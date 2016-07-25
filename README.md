@@ -6,7 +6,7 @@ useful in situations where you know it.
 
 You'll need a DigitalOcean API key and configure the script in the header.
 
-This was designed to run on a router with systems like [asus-wrt](https://github.com/RMerl/asuswrt-merlin).
+This was designed to run on a router with systems like [asuswrt-merlin](https://github.com/RMerl/asuswrt-merlin).
 
 The script depends on [JSON.sh](https://github.com/dominictarr/JSON.sh), and
 will download a copy into the current directory (pinned to a known SHA) if it
