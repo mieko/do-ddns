@@ -41,7 +41,6 @@ RECORD=${RECORD:='bobs-house'}
 
 ################################################################################
 set -e
-set -o pipefail
 
 fail() {
   echo "$0: $@" >&2
@@ -83,29 +82,29 @@ req() {
 }
 
 get_listing() {
-  local JSON=$(req "https://api.digitalocean.com/v2/domains/$DOMAIN/records")
-  local ALL=$(echo "$JSON" | ./JSON.sh -b)
+  JSON=$(req "https://api.digitalocean.com/v2/domains/$DOMAIN/records")
+  ALL=$(echo "$JSON" | ./JSON.sh -b)
 
   # Find the line for the domain that includes the name we've configured
-  local LINE=$(echo "$ALL" | grep '\["domain_records",[0-9]\+,"name"\]' | \
+  LINE=$(echo "$ALL" | grep '\["domain_records",[0-9]\+,"name"\]' | \
                grep "\"$RECORD\"")
 
   # The index of this record is the 2nd field...
-  local INDEX=$(echo "$LINE" | cut -d, -f2)
+  INDEX=$(echo "$LINE" | cut -d, -f2)
 
   # Use the index to find the record's id
-  local ID_LINE=$(echo "$ALL" | grep "\[\"domain_records\",$INDEX,\"id\"\]")
-  local ID=$(echo "$ID_LINE" | cut -f2)
+  ID_LINE=$(echo "$ALL" | grep "\[\"domain_records\",$INDEX,\"id\"\]")
+  ID=$(echo "$ID_LINE" | cut -f2)
   echo "$ID"
 }
 
 create_record() {
-  local REQ="{\"type\": \"A\", \"name\": \"$RECORD\", \"data\": \"$IP_ADDRESS\"}"
+  REQ="{\"type\": \"A\", \"name\": \"$RECORD\", \"data\": \"$IP_ADDRESS\"}"
   req -d "$REQ" "https://api.digitalocean.com/v2/domains/$DOMAIN/records"
 }
 
 update_record() {
-  local REQ="{\"data\": \"$IP_ADDRESS\"}"
+  REQ="{\"data\": \"$IP_ADDRESS\"}"
   req -d "$REQ" -X PUT \
     "https://api.digitalocean.com/v2/domains/$DOMAIN/records/$1"
 }
