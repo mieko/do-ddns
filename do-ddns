@@ -24,7 +24,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# All these variables can be overridden by a environment variable of the same
+# All these variables can be overridden by an environment variable of the same
 # name.
 
 # R/W API token: https://cloud.digitalocean.com/settings/api/tokens
@@ -65,12 +65,6 @@ if [ ! -f './JSON.sh' ]; then
 fi
 
 [ -x './JSON.sh' ] || chmod +x './JSON.sh'
-
-# Replace JSON.sh's "throw" with ours.
-unset -f throw
-throw() {
-  fail "JSON.sh: $*"
-}
 
 if [ -z "$1" ]; then
   fail "usage: $0 ip-address"
