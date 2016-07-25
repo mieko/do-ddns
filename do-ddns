@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+#
+# DigitalOcean Dynamic DNS updater.
+#
+# The MIT License (MIT)
+#
+# Copyright (c) 2016 Mike Owens <mike@meter.md>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# All these variables can be overridden by a environment variable of the same
+# name.
+
+# R/W API token: https://cloud.digitalocean.com/settings/api/tokens
+ACCESS_TOKEN=${ACCESS_TOKEN:='b6e76f0...'}
+
+# One of these: https://cloud.digitalocean.com/networking/domains
+# It needs to be pre-existing.
+DOMAIN=${DOMAIN:='example.com'}
+
+# Subdomain of $DOMAIN, or @ for the root.  Note: This script will not work if
+# you have multiple records with the same name.  We'll create the record if it
+# doesn't exist.
+RECORD=${RECORD:='bobs-house'}
+
+################################################################################
+set -e
+set -o pipefail
+
+fail() {
+  echo "$0: $@" >&2
+  which /sbin/ddns_custom_updated && /sbin/ddns_custom_updated 0
+  exit 1
+}
+
+# It's not practical do use the DO API without a JSON parser.  I tried.
+#
+# So we use JSON.sh from this project: https://github.com/dominictarr/JSON.sh
+#
+# This URL is pinned to JSON.sh at that particular commit.  The commit SHA
+# verifies that it's the version I saw, not some potentially malicious updated
+# future version.  We only have to trust Github in this situation.
+
+if [ ! -f './JSON.sh' ]; then
+  SHA='2de457939e9b3fcf0d1e3f55b6072d060cb47a45'
+  curl --silent --remote-name \
+    "https://raw.githubusercontent.com/dominictarr/JSON.sh/$SHA/JSON.sh" \
+      || fail "couldn't download JSON.sh"
+fi
+
+[ -x './JSON.sh' ] || chmod +x './JSON.sh'
+
+# Replace JSON.sh's "throw" with ours.
+unset -f throw
+throw() {
+  fail "JSON.sh: $*"
+}
+
+if [ -z "$1" ]; then
+  fail "usage: $0 ip-address"
+else
+  IP_ADDRESS="$1"
+fi
+
+# Generalized request with headers set.  Accepts further arguments which are
+# appended.
+req() {
+  curl --fail --silent --user-agent 'do-ddns/1.0' \
+       --header "Authorization: bearer $ACCESS_TOKEN" \
+       --header 'Accept: application/json' \
+       --header 'Content-Type: application/json' "$@" || \
+         fail "invalid request (check auth values?)"
+}
+
+get_listing() {
+  local JSON=$(req "https://api.digitalocean.com/v2/domains/$DOMAIN/records")
+  local ALL=$(echo "$JSON" | ./JSON.sh -b)
+
+  # Find the line for the domain that includes the name we've configured
+  local LINE=$(echo "$ALL" | grep '\["domain_records",[0-9]\+,"name"\]' | \
+               grep "\"$RECORD\"")
+
+  # The index of this record is the 2nd field...
+  local INDEX=$(echo "$LINE" | cut -d, -f2)
+
+  # Use the index to find the record's id
+  local ID_LINE=$(echo "$ALL" | grep "\[\"domain_records\",$INDEX,\"id\"\]")
+  local ID=$(echo "$ID_LINE" | cut -f2)
+  echo "$ID"
+}
+
+create_record() {
+  local REQ="{\"type\": \"A\", \"name\": \"$RECORD\", \"data\": \"$IP_ADDRESS\"}"
+  req -d "$REQ" "https://api.digitalocean.com/v2/domains/$DOMAIN/records"
+}
+
+update_record() {
+  local REQ="{\"data\": \"$IP_ADDRESS\"}"
+  req -d "$REQ" -X PUT \
+    "https://api.digitalocean.com/v2/domains/$DOMAIN/records/$1"
+}
+
+EXISTING=$(get_listing)
+
+if [ -z "$EXISTING" ]; then
+  create_record &>/dev/null \
+    || fail "couldnt create record"
+else
+  update_record "$EXISTING" &>/dev/null \
+    || fail "couldnt update existing record"
+fi
+
+which /sbin/ddns_custom_updated && /sbin/ddns_custom_updated 1
+exit 0
