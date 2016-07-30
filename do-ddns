@@ -44,7 +44,7 @@ set -e
 
 fail() {
   echo "$0: $@" >&2
-  which /sbin/ddns_custom_updated && /sbin/ddns_custom_updated 0
+  [ -x /sbin/ddns_custom_updated ] && /sbin/ddns_custom_updated 0
   exit 1
 }
 
@@ -119,5 +119,5 @@ else
     || fail "couldnt update existing record"
 fi
 
-which /sbin/ddns_custom_updated && /sbin/ddns_custom_updated 1
+[ -x /sbin/ddns_custom_updated ] && /sbin/ddns_custom_updated 1
 exit 0
