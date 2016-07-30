@@ -24,8 +24,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# First, if you want to use a conf file, do so in one of these files, which
+# should just set the SH variables below:
+for conf in /etc/do-ddns "$HOME/.do-ddns" "$(dirname "$0")/.do-ddns" ; do
+  if [ -f "$conf" ] ; then
+    source "$conf"
+    break
+  fi
+done
+
 # All these variables can be overridden by an environment variable of the same
-# name.
+# name, or in the preceding conf files
 
 # R/W API token: https://cloud.digitalocean.com/settings/api/tokens
 ACCESS_TOKEN=${ACCESS_TOKEN:='b6e76f0...'}
