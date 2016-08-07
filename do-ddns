@@ -65,14 +65,16 @@ fail() {
 # verifies that it's the version I saw, not some potentially malicious updated
 # future version.  We only have to trust Github in this situation.
 
-if [ ! -f './JSON.sh' ]; then
+JSON_sh="$(dirname "$0")/JSON.sh"
+
+if [ ! -f "$JSON_sh" ]; then
   SHA='2de457939e9b3fcf0d1e3f55b6072d060cb47a45'
-  curl --silent --remote-name \
+  curl --silent -o "$JSON_sh" \
     "https://raw.githubusercontent.com/dominictarr/JSON.sh/$SHA/JSON.sh" \
       || fail "couldn't download JSON.sh"
 fi
 
-[ -x './JSON.sh' ] || chmod +x './JSON.sh'
+[ -x "$JSON_sh" ] || chmod +x "$JSON_sh"
 
 if [ -z "$1" ]; then
   fail "usage: $0 ip-address"
@@ -92,7 +94,7 @@ req() {
 
 get_listing() {
   JSON=$(req "https://api.digitalocean.com/v2/domains/$DOMAIN/records")
-  ALL=$(echo "$JSON" | ./JSON.sh -b)
+  ALL=$(echo "$JSON" | "$JSON_sh" -b)
 
   # Find the line for the domain that includes the name we've configured
   LINE=$(echo "$ALL" | grep '\["domain_records",[0-9]\+,"name"\]' | \
