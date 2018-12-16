@@ -93,7 +93,7 @@ req() {
 }
 
 get_listing() {
-  JSON=$(req "https://api.digitalocean.com/v2/domains/$DOMAIN/records")
+  JSON=$(req "https://api.digitalocean.com/v2/domains/$DOMAIN/records?per_page=500")
   ALL=$(echo "$JSON" | "$JSON_sh" -b)
 
   # Find the line for the domain that includes the name we've configured
